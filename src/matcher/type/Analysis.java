@@ -2008,51 +2008,53 @@ class Analysis {
 		while ((in = positionsToTrace.poll()) != null) {
 			int pos = il.indexOf(in);
 			Frame<SourceValue> frame = frames[pos];
-			int stackConsumed = getStackDemand(in, frame);
+			if (frame != null) {
+				int stackConsumed = getStackDemand(in, frame);
 
-			for (int i = 0; i < stackConsumed; i++) {
-				SourceValue value = frame.getStack(frame.getStackSize() - i - 1);
+				for (int i = 0; i < stackConsumed; i++) {
+					SourceValue value = frame.getStack(frame.getStackSize() - i - 1);
 
-				for (AbstractInsnNode in2 : value.insns) {
-					int pos2 = il.indexOf(in2);
-					if (tracedPositions.get(pos2)) continue;
+					for (AbstractInsnNode in2 : value.insns) {
+						int pos2 = il.indexOf(in2);
+						if (tracedPositions.get(pos2)) continue;
 
-					tracedPositions.set(pos2);
-					positionsToTrace.add(in2);
+						tracedPositions.set(pos2);
+						positionsToTrace.add(in2);
+					}
 				}
-			}
 
-			if (in.getType() == AbstractInsnNode.VAR_INSN
-					&& in.getOpcode() >= Opcodes.ILOAD && in.getOpcode() <= Opcodes.ALOAD) {
-				VarInsnNode vin = (VarInsnNode) in;
-				SourceValue value = frame.getLocal(vin.var);
+				if (in.getType() == AbstractInsnNode.VAR_INSN
+						&& in.getOpcode() >= Opcodes.ILOAD && in.getOpcode() <= Opcodes.ALOAD) {
+					VarInsnNode vin = (VarInsnNode) in;
+					SourceValue value = frame.getLocal(vin.var);
 
-				for (AbstractInsnNode in2 : value.insns) {
-					int pos2 = il.indexOf(in2);
-					if (tracedPositions.get(pos2)) continue;
+					for (AbstractInsnNode in2 : value.insns) {
+						int pos2 = il.indexOf(in2);
+						if (tracedPositions.get(pos2)) continue;
 
-					tracedPositions.set(pos2);
-					positionsToTrace.add(in2);
-				}
-			} else if (in.getOpcode() == Opcodes.NEW) { // ensure we track the constructor call when running across a NEW insn
-				TypeInsnNode tin = (TypeInsnNode) in;
+						tracedPositions.set(pos2);
+						positionsToTrace.add(in2);
+					}
+				} else if (in.getOpcode() == Opcodes.NEW) { // ensure we track the constructor call when running across a NEW insn
+					TypeInsnNode tin = (TypeInsnNode) in;
 
-				for (Iterator<AbstractInsnNode> it = il.iterator(pos + 1); it.hasNext(); ) {
-					AbstractInsnNode ain = it.next();
+					for (Iterator<AbstractInsnNode> it = il.iterator(pos + 1); it.hasNext(); ) {
+						AbstractInsnNode ain = it.next();
 
-					if (ain.getOpcode() == Opcodes.INVOKESPECIAL) {
-						MethodInsnNode in2 = (MethodInsnNode) ain;
+						if (ain.getOpcode() == Opcodes.INVOKESPECIAL) {
+							MethodInsnNode in2 = (MethodInsnNode) ain;
 
-						if (in2.name.equals("<init>")
-								&& in2.owner.equals(tin.desc)) {
-							int pos2 = il.indexOf(in2);
+							if (in2.name.equals("<init>")
+									&& in2.owner.equals(tin.desc)) {
+								int pos2 = il.indexOf(in2);
 
-							if (!tracedPositions.get(pos2)) {
-								tracedPositions.set(pos2);
-								positionsToTrace.add(in2);
+								if (!tracedPositions.get(pos2)) {
+									tracedPositions.set(pos2);
+									positionsToTrace.add(in2);
+								}
+
+								break;
 							}
-
-							break;
 						}
 					}
 				}
